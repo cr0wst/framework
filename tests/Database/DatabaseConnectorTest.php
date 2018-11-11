@@ -25,6 +25,25 @@ class DatabaseConnectorTest extends TestCase
         $this->assertEquals([0 => 'baz', 1 => 'bar', 2 => 'boom'], $connector->getOptions(['options' => [0 => 'baz', 2 => 'boom']]));
     }
 
+    public function testGetUsernameAndPassword()
+    {
+        $dsn = 'pgsql:host=foo;dbname=bar;port=111';
+        $config = ['host' => 'foo', 'database' => 'bar', 'port' => 111, 'charset' => 'utf8', 'username' => 'foo', 'password' => 'bar'];
+
+        $connector = $this->getMockBuilder(Connector::class)->setMethods(['createPdoConnection'])->getMock();
+        $connector->expects($this->once())->method('createPdoConnection')->with($dsn, 'foo', 'bar', ['options']);
+        $connector->createConnection($dsn, $config, ['options']);
+    }
+
+    public function testGetUsernameAndPasswordFromUrl()
+    {
+        $dsn = 'pgsql:host=foo;dbname=bar;port=111';
+        $config = ['charset' => 'utf8', 'url' => 'postgres://baz:faz@foo:111/bar'];
+        $connector = $this->getMockBuilder(Connector::class)->setMethods(['createPdoConnection'])->getMock();
+        $connector->expects($this->once())->method('createPdoConnection')->with($dsn, 'baz', 'faz', ['options']);
+        $connector->createConnection($dsn, $config, ['options']);
+    }
+
     /**
      * @dataProvider mySqlConnectProvider
      */
@@ -55,6 +74,21 @@ class DatabaseConnectorTest extends TestCase
     {
         $dsn = 'pgsql:host=foo;dbname=bar;port=111';
         $config = ['host' => 'foo', 'database' => 'bar', 'port' => 111, 'charset' => 'utf8'];
+        $connector = $this->getMockBuilder(PostgresConnector::class)->setMethods(['createConnection', 'getOptions'])->getMock();
+        $connection = m::mock(stdClass::class);
+        $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->will($this->returnValue(['options']));
+        $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->will($this->returnValue($connection));
+        $connection->shouldReceive('prepare')->once()->with('set names \'utf8\'')->andReturn($connection);
+        $connection->shouldReceive('execute')->once();
+        $result = $connector->connect($config);
+
+        $this->assertSame($result, $connection);
+    }
+
+    public function testPostgresConnectCallsCreateConnectionWithUrlArgument()
+    {
+        $dsn = 'pgsql:host=foo;dbname=bar;port=111';
+        $config = ['charset' => 'utf8', 'url' => 'postgres://baz:faz@foo:111/bar'];
         $connector = $this->getMockBuilder(PostgresConnector::class)->setMethods(['createConnection', 'getOptions'])->getMock();
         $connection = m::mock(stdClass::class);
         $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->will($this->returnValue(['options']));

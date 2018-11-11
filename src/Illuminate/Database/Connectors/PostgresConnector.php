@@ -142,6 +142,12 @@ class PostgresConnector extends Connector implements ConnectorInterface
         // need to establish the PDO connections and return them back for use.
         extract($config, EXTR_SKIP);
 
+        // If the connection information was given as a URL, we override the imported
+        // variables.
+        if (isset($config['url']) && $url) {
+            [$host, $database, $port] = $this->getParametersFromUrl($url);
+        }
+
         $host = isset($host) ? "host={$host};" : '';
 
         $dsn = "pgsql:{$host}dbname={$database}";
@@ -149,11 +155,27 @@ class PostgresConnector extends Connector implements ConnectorInterface
         // If a port was specified, we will add it to this Postgres DSN connections
         // format. Once we have done that we are ready to return this connection
         // string back out for usage, as this has been fully constructed here.
-        if (isset($config['port'])) {
+        if (isset($config['port']) || (isset($port) && $port)) {
             $dsn .= ";port={$port}";
         }
 
         return $this->addSslOptions($dsn, $config);
+    }
+
+    /**
+     * Get the DSN parameters from a url string.
+     *
+     * @param  $url
+     * @return array
+     */
+    protected function getParametersFromUrl($url)
+    {
+        $url = parse_url($url);
+        return [
+            $url['host'],
+            ltrim($url['path'], '/'),
+            isset($url['port']) ? $url['port'] : ''
+        ];
     }
 
     /**
