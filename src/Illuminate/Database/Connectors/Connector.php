@@ -37,9 +37,7 @@ class Connector
      */
     public function createConnection($dsn, array $config, array $options)
     {
-        [$username, $password] = [
-            $config['username'] ?? null, $config['password'] ?? null,
-        ];
+        [$username, $password] = $this->getUsernameAndPassword($config);
 
         try {
             return $this->createPdoConnection(
@@ -50,6 +48,26 @@ class Connector
                 $e, $dsn, $username, $password, $options
             );
         }
+    }
+
+    /**
+     * Get the Username and Password based on the config.
+     *
+     * @param  array  $config
+     * @return array
+     */
+    protected function getUsernameAndPassword(array $config)
+    {
+        if (array_key_exists('url', $config) && $config['url']) {
+            $url = parse_url($config['url']);
+            return [
+                $url['user'] ?? null, $url['pass'] ?? null,
+            ];
+        }
+
+        return [
+            $config['username'] ?? null, $config['password'] ?? null,
+        ];
     }
 
     /**
